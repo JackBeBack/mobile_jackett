@@ -1,6 +1,5 @@
 package de.jonashive.mobile.jackit.viewmodel
 
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,9 +12,7 @@ import de.jonashive.mobile.jackit.entity.SearchItemEntity
 import de.jonashive.mobile.jackit.utility.XMLParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
+import okhttp3.*
 import java.nio.charset.Charset
 
 
@@ -155,6 +152,30 @@ class WebViewModel: ViewModel() {
         val apikey = VariablesViewModel.singelton.read(Variable.JACKETT_API_KEY)
 
         return "$baseUrl:$port/$path?apikey=$apikey"
+    }
+
+    fun addTransfer(link: String?, callback: (Response) -> (Unit)){
+        val url = "https://www.premiumize.me/api/transfer/create"
+
+        val formBody: RequestBody = FormBody.Builder()
+            .add("apikey", "micchce9593itkg2")
+            .add("src", link ?: "")
+            .build()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val request: Request = Request.Builder()
+                    .addHeader("Accept", "application/json")
+                    .post(formBody)
+                    .url(url)
+                    .build()
+                client.newCall(request).execute().use { response -> callback(response) }
+            }catch (e: Exception){
+                errors.postValue(e.message)
+                loadingState.postValue(LoadingState.FAILED)
+            }
+
+        }
     }
 }
 

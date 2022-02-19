@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +27,10 @@ import de.jonashive.mobile.jackit.ui.theme.blue_accent
 import de.jonashive.mobile.jackit.ui.theme.dark_bg
 import de.jonashive.mobile.jackit.viewmodel.WebViewModel
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,9 +42,13 @@ import de.jonashive.mobile.jackit.ui.theme.gray
 import de.jonashive.mobile.jackit.ui.theme.light_bg
 import de.jonashive.mobile.jackit.viewmodel.LoadingState
 
+val webViewModle = WebViewModel.singelton
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Preview(showSystemUi = true)
 @Composable
 fun BrowseScreen() {
-    val webViewModle = WebViewModel.singelton
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val indexer by webViewModle.indexers.observeAsState()
     val searchResult by webViewModle.searchResult.observeAsState()
@@ -56,15 +64,19 @@ fun BrowseScreen() {
         mutableStateOf("")
     }
 
-    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+    ConstraintLayout(modifier = Modifier
+        .fillMaxSize()
+        .background(dark_bg)) {
         val (searchbar, list, selection, loading) = createRefs()
 
-        Column(modifier = Modifier.constrainAs(selection) {
+        Column(modifier = Modifier
+            .constrainAs(selection) {
 
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-            bottom.linkTo(searchbar.top, margin = 8.dp)
-        }.background(dark_bg)) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                bottom.linkTo(searchbar.top, margin = 8.dp)
+            }
+            .background(dark_bg)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 indexer?.forEach {
                     Indexer(name = it.title ?: "No NAME", selected = selectedIndexer == it.title) {
@@ -106,24 +118,49 @@ fun BrowseScreen() {
                 start.linkTo(parent.start)
                 end.linkTo(parent.end)
             }) {
-            TextField(modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = TextFieldDefaults.textFieldColors(
-                    backgroundColor = light_bg,
-                    focusedIndicatorColor = blue_accent, //hide the indicator
-                    unfocusedIndicatorColor = blue_accent,
-                    textColor = gray
-                ), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (selectedIndexer.isNotBlank()) {
-                            webViewModle.search(query, selectedIndexer)
-                        }
-                    }),
-                value = query,
-                onValueChange = {
-                    query = it
-                })
+            ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
+                val (text, button) = createRefs()
+                TextField(modifier = Modifier
+                    .constrainAs(text) {
+                        start.linkTo(parent.start)
+                        bottom.linkTo(parent.bottom)
+                        end.linkTo(button.start)
+                        width = Dimension.percent(0.8F)
+                    }
+                    .fillMaxWidth(),
+                    singleLine = true,
+                    colors = TextFieldDefaults.textFieldColors(
+                        backgroundColor = light_bg,
+                        focusedIndicatorColor = blue_accent, //hide the indicator
+                        unfocusedIndicatorColor = blue_accent,
+                        textColor = gray
+                    ), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (selectedIndexer.isNotBlank()) {
+                                webViewModle.search(query, selectedIndexer)
+                            }
+                        }),
+                    value = query,
+                    onValueChange = {
+                        query = it
+                    })
+                Button(onClick = {
+                    keyboardController?.hide()
+                    if (selectedIndexer.isNotBlank()) {
+                        webViewModle.search(query, selectedIndexer)
+                    }
+                }, modifier = Modifier.constrainAs(button) {
+                    end.linkTo(parent.end)
+                    bottom.linkTo(parent.bottom)
+                    top.linkTo(parent.top)
+                    start.linkTo(text.end)
+                    height = Dimension.fillToConstraints
+                    width = Dimension.fillToConstraints
+                }) {
+                    Icon(imageVector = Icons.Default.Check, contentDescription = "Check")
+                }
+            }
         }
 
 
@@ -138,8 +175,13 @@ fun Entry(data: Item) {
         .padding(8.dp)
         .clickable {
             Toast
-                .makeText(context, data.title, Toast.LENGTH_SHORT)
+                .makeText(context, "Added -> ${data.title}", Toast.LENGTH_SHORT)
                 .show()
+            webViewModle.addTransfer(data.magnet) {
+                if(it.code != 200){
+                    webViewModle.errors.postValue("Transfer Failed (${it.code})")
+                }
+            }
         }) {
         val (title, pub, size, bottom) = createRefs()
         Text(
