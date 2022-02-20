@@ -64,9 +64,11 @@ fun BrowseScreen() {
         mutableStateOf("")
     }
 
-    ConstraintLayout(modifier = Modifier
-        .fillMaxSize()
-        .background(dark_bg)) {
+    ConstraintLayout(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(dark_bg)
+    ) {
         val (searchbar, list, selection, loading) = createRefs()
 
         Column(modifier = Modifier
@@ -95,7 +97,8 @@ fun BrowseScreen() {
                 end.linkTo(parent.end)
                 bottom.linkTo(selection.top)
                 height = Dimension.fillToConstraints
-            }, state = scrollState) {
+            }, state = scrollState
+        ) {
             item {
                 searchResult?.rss?.item?.forEach {
                     Entry(data = it)
@@ -145,6 +148,7 @@ fun BrowseScreen() {
                     onValueChange = {
                         query = it
                     })
+                //Search Button
                 Button(onClick = {
                     keyboardController?.hide()
                     if (selectedIndexer.isNotBlank()) {
@@ -167,62 +171,75 @@ fun BrowseScreen() {
     }
 }
 
+@Preview(showSystemUi = true)
 @Composable
-fun Entry(data: Item) {
+fun Entry(data: Item = Item().apply { title = "This is a Title" }) {
     val context = LocalContext.current
     ConstraintLayout(modifier = Modifier
         .fillMaxWidth()
-        .padding(8.dp)
         .clickable {
             Toast
                 .makeText(context, "Added -> ${data.title}", Toast.LENGTH_SHORT)
                 .show()
-            webViewModle.addTransfer(data.magnet) {
-                if(it.code != 200){
-                    webViewModle.errors.postValue("Transfer Failed (${it.code})")
+            if (data.magnet != null) {
+                webViewModle.addTransfer(data.magnet) {
+                    if (it.code != 200) {
+                        webViewModle.errors.postValue("Transfer Failed (${it.code})")
+                    }
                 }
+            } else if (data.guid != null) {
+                webViewModle.getMagnetFor(data.guid!!)
             }
         }) {
-        val (title, pub, size, bottom) = createRefs()
+        val (title, pub, size, seperator) = createRefs()
         Text(
             text = data.title ?: "",
             fontSize = 24.sp,
             color = gray,
             textAlign = TextAlign.Start,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.constrainAs(title) {
                 start.linkTo(parent.start, margin = 8.dp)
                 end.linkTo(parent.end, margin = 8.dp)
-                top.linkTo(parent.top, margin = 8.dp)
+                top.linkTo(parent.top, margin = 2.dp)
                 width = Dimension.fillToConstraints
             })
         Text(
-            text = "${data.pubDate?.subSequence(0, 16).toString()} | Seeder: ${data.seeder}",
+            text = "${
+                data.pubDate?.subSequence(0, 16).toString()
+            } | S/P : ${data.seeder}/${data.peer}",
             fontSize = 16.sp,
             color = gray,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.constrainAs(pub) {
                 start.linkTo(parent.start, margin = 8.dp)
-                top.linkTo(title.bottom, margin = 8.dp)
+                top.linkTo(title.bottom, margin = 2.dp)
             }
         )
         Text(
             text = "${data.gb} Gb",
             fontSize = 16.sp,
-            color = if (data.magnet == null) light_bg else gray,
+            color = if (data.magnet == null && data.guid == null) light_bg else gray,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.constrainAs(size) {
                 end.linkTo(parent.end, margin = 8.dp)
-                top.linkTo(title.bottom, margin = 8.dp)
+                top.linkTo(title.bottom, margin = 2.dp)
             }
         )
         Box(modifier = Modifier
             .height(1.dp)
             .background(gray)
-            .fillMaxWidth())
+            .constrainAs(seperator) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                top.linkTo(size.bottom, margin = 2.dp)
+                width = Dimension.fillToConstraints
+            }
+            .padding(bottom = 2.dp)
+        )
     }
 
 }

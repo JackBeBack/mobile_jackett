@@ -3,12 +3,14 @@ package de.jonashive.mobile.jackit.viewmodel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.prof.rssparser.Parser
 import de.jonashive.mobile.jackit.Variable
 import de.jonashive.mobile.jackit.VariablesViewModel
 import de.jonashive.mobile.jackit.entity.Inderxers
 import de.jonashive.mobile.jackit.entity.Indexer
 import de.jonashive.mobile.jackit.entity.SearchItemEntity
+import de.jonashive.mobile.jackit.ui.composables.webViewModle
 import de.jonashive.mobile.jackit.utility.XMLParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -127,6 +129,21 @@ class WebViewModel: ViewModel() {
             call(url){
                 val indexer = XMLParser(Inderxers::class.java).fromXML(it.body?.string() ?: "")
                 indexers.postValue(indexer.indexer?.toList() ?: listOf())
+            }
+        }
+    }
+
+    fun getMagnetFor(url: String){
+        val magnetRegex = "magnet:\\?xt=urn:btih:[a-zA-Z0-9&=%.-]*".toRegex()
+        viewModelScope.launch(Dispatchers.IO){
+            call(url){
+                val content = it.body?.string()
+                val link = magnetRegex.find(content ?: "")
+                addTransfer(link?.value){
+                    if(it.code != 200){
+                        errors.postValue("Transfer Failed (${it.code})")
+                    }
+                }
             }
         }
     }
